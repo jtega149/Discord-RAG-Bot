@@ -1,0 +1,3 @@
+
+1. Discord bot given capabalities in bot section of the app in developer portal,
+    However OAuth2 section meant for the permissions allowed on specific servers

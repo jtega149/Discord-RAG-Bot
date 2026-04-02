@@ -106,3 +106,39 @@ When you're done working on the project, you can deactivate the virtual environm
 ```bash
 deactivate
 ```
+
+## Johnny's Discord RAG bot pipeline
+
+### Whenever a User uploads a PDF to the discord
+```bash
+User runs /upload course:CS101 + attaches a PDF
+        ↓
+Discord receives the file & course name
+        ↓
+PyMuPDF extracts all the text from the PDF
+        ↓
+LangChain splits the text into small chunks (e.g. 500 words each)
+        ↓
+OpenAI converts each chunk into a vector (a list of numbers that represents meaning)
+        ↓
+ChromaDB stores each vector + the original text + metadata (course name, filename, page number)
+```
+
+### When a User asks a question to the discord bot
+```bash
+User runs /ask course:CS101 what is dynamic programming?
+        ↓
+OpenAI converts the question into a vector (same way chunks were converted)
+        ↓
+ChromaDB searches for the chunks whose vectors are closest to the question vector
+        ↓
+Only chunks tagged CS101 are searched (metadata filtering)
+        ↓
+Top 3-5 most relevant chunks are retrieved
+        ↓
+Those chunks + the original question are sent to Claude as context
+        ↓
+Claude reads the chunks and generates an answer
+        ↓
+Bot replies in Discord with the answer + which PDF/page it came from
+```
