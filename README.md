@@ -1,4 +1,4 @@
-Discord RAG Bot
+# Discord RAG Bot
 
 A Discord bot that answers questions about PDFs using Retrieval-Augmented Generation (RAG). Upload study material PDFs per course and ask questions — the bot fetches relevant content and answers using an LLM.
 
