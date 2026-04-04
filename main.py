@@ -25,4 +25,4 @@ async def on_message(message):
             await message.channel.send("Hello my creator!")
         await message.channel.send('Hello! I am a RAG Bot powered by OpenAI and Anthropic.') # Respond to !hello command
 
-client.run(os.getenv("DISCORD_TOKEN")) #run this bot 
+client.run(os.getenv("DISCORD_TOKEN") or "") #run this bot 
