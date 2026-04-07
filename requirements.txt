@@ -5,5 +5,6 @@ langchain-community
 langchain-openai
 langchain-anthropic
 langchain-experimental
+langchain-chroma
 chromadb
 pymupdf

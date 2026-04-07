@@ -3,6 +3,8 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_openai import OpenAIEmbeddings
 import os
 from pydantic import SecretStr
+from dotenv import load_dotenv
+load_dotenv()
 
 def ingest_pdf(file_path: str, course: str):
     # Load the PDF

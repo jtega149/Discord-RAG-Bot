@@ -1,0 +1,54 @@
+#from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma # New version of Chroma for langchain
+from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+
+# Path to where ChromaDB will save data locally
+CHROMA_PATH = "data/chroma"
+
+# Global vector_store, to avoid creating multiple connections thus more scalable
+vector_store = None
+
+def get_vector_store():
+    global vector_store
+    # Connect to ChromaDB, creates the database if it doesn't exist yet
+    if not vector_store:
+        embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=SecretStr(os.getenv("OPENAI_API_KEY") or ""),
+            dimensions=384
+        )
+
+        # Essentially create Chroma client and connect to the "study_materials" collection, which is where we'll store all our chunks
+        vector_store = Chroma(
+            collection_name="study_materials",
+            embedding_function=embeddings,
+            persist_directory=CHROMA_PATH
+        )
+
+    return vector_store
+
+
+def store_chunks(chunks: list):
+    # Takes chunks from ingestor and saves them into ChromaDB
+    vector_store = get_vector_store()
+    vector_store.add_documents(chunks)
+    print(f"Stored {len(chunks)} chunks into ChromaDB")
+
+
+def query_chunks(question: str, course: str, k: int = 5):
+    # Searches ChromaDB for the most relevant chunks to the question
+    # filtered by course name so answers only come from the right material
+    vector_store = get_vector_store()
+
+    results = vector_store.similarity_search(
+        query=question,
+        k=k,
+        filter={"course": course}
+    )
+
+    return results
