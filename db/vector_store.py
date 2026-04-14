@@ -45,7 +45,7 @@ def store_document(document: Document):
     except Exception as e:
         print(f"Error storing document: {e}")
     
-def query_documents(query: str, k: int = 1):
+def query_documents(query: str, k: int = 3):
     """
     Finds the k most relevant PDFs to the user's query
     filtered by course. Returns a list of results with
