@@ -1,6 +1,7 @@
 #from langchain_community.vectorstores import Chroma
 from langchain_chroma import Chroma # New version of Chroma for langchain
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
 from pydantic import SecretStr
 import os
 from dotenv import load_dotenv
@@ -32,3 +33,31 @@ def get_vector_store():
 
     return vector_store
 
+def store_document(document: Document):
+    """
+    Stores a single PDF document entry into ChromaDB.
+    Each entry represents one whole PDF, not a chunk.
+    """
+    try:
+        vs = get_vector_store()
+        vs.add_documents([document])
+        print(f"Stored document: {document.metadata['filename']}")
+    except Exception as e:
+        print(f"Error storing document: {e}")
+    
+def query_documents(query: str, k: int = 1):
+    """
+    Finds the k most relevant PDFs to the user's query
+    filtered by course. Returns a list of results with
+    file paths in metadata so Discord can send the actual files back.
+    """
+    try:
+        vs = get_vector_store()
+        results = vs.similarity_search(
+            query=query,
+            k=k,
+        )
+        return results
+    except Exception as e:
+        print(f"Error querying documents: {e}")
+        return []

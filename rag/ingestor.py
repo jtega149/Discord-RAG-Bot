@@ -11,18 +11,11 @@ load_dotenv()
 STORAGE_PATH = "../storage/pdfs"
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def save_pdf(file_path: str, course: str) -> str:
-    """
-    Saves the PDF into storage/pdfs/<course>/ folder.
-    Returns the path where the file was saved.
-    """
-    course_folder = os.path.join(STORAGE_PATH, course)
-    os.makedirs(course_folder, exist_ok=True)
-
+def save_pdf(file_path: str) -> str:
+    os.makedirs(STORAGE_PATH, exist_ok=True)
     filename = os.path.basename(file_path)
-    destination = os.path.join(course_folder, filename)
+    destination = os.path.join(STORAGE_PATH, filename)
     shutil.copy2(file_path, destination)
-
     return destination
 
 
@@ -74,14 +67,14 @@ def generate_pdf_summary(file_path: str) -> str | None:
     return response.choices[0].message.content
 
 
-def ingest_pdf(file_path: str, course: str) -> Document | None:
+def ingest_pdf(file_path: str) -> Document | None:
     """
     Main function — saves the PDF and generates a summary.
     Returns a single Document object to be stored in ChromaDB.
     """
     try:
         # Save the PDF to storage
-        saved_path = save_pdf(file_path, course)
+        saved_path = save_pdf(file_path)
         print(f"PDF saved to {saved_path}")
 
         # Generate a summary of the PDF using Claude vision
@@ -98,7 +91,6 @@ def ingest_pdf(file_path: str, course: str) -> Document | None:
         return Document(
             page_content=summary,
             metadata={
-                "course": course,
                 "file_path": saved_path,
                 "filename": os.path.basename(file_path),
             }
