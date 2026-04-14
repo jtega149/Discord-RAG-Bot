@@ -11,31 +11,31 @@ rag-discord-bot/
 │
 ├── bot/
 │   ├── __init__.py
-│   ├── client.py               # Discord bot setup & event listeners
+│   ├── client.py
 │   └── commands/
 │       ├── __init__.py
-│       ├── upload.py           # /upload command — attach a PDF to a course
-│       ├── ask.py              # /ask command — ask a question about a course
-│       └── list_docs.py        # /list command — see all PDFs for a course
+│       ├── upload.py
+│       ├── search.py
+│       └── list_docs.py
 │
 ├── rag/
 │   ├── __init__.py
-│   ├── ingestor.py             # PDF parsing & chunking
-│   ├── embedder.py             # Turning text chunks into vectors
-│   └── retriever.py           # Querying the vector DB + calling the LLM
+│   ├── ingestor.py
+│   └── retriever.py
 │
 ├── db/
 │   ├── __init__.py
-│   └── vector_store.py        # ChromaDB setup & operations
+│   └── vector_store.py
 │
-├── data/
-│   └── chroma/                 # ChromaDB saves data here (auto-generated)
+├── storage/
+│   └── pdfs/ # where uploaded PDFs are saved locally
 │
-├── .env                        # Your API keys — never commit this
+├── tests/
+├── .env
 ├── .gitignore
 ├── requirements.txt
-├── config.py                   # Global settings (model names, chunk size, etc.)
-└── main.py                     # Entry point — runs the bot
+├── config.py
+└── main.py
 ```
 
 ---
@@ -111,34 +111,17 @@ deactivate
 
 ### Whenever a User uploads a PDF to the discord
 ```bash
-User runs /upload course:CS101 + attaches a PDF
+/upload course:Calc3 + PDF attached
         ↓
-Discord receives the file & course name
+Save the PDF file to a local folder
         ↓
-PyMuPDF extracts all the text from the PDF
+Generate a short summary of the PDF using Claude
         ↓
-LangChain splits the text into small chunks (e.g. 500 words each)
+Embed that summary as ONE vector entry with the file path in metadata
         ↓
-OpenAI converts each chunk into a vector (a list of numbers that represents meaning)
+User asks "I need past Calc 3 finals"
         ↓
-ChromaDB stores each vector + the original text + metadata (course name, filename, page number)
-```
-
-### When a User asks a question to the discord bot
-```bash
-User runs /ask course:CS101 what is dynamic programming?
+ChromaDB finds the most similar PDF summaries
         ↓
-OpenAI converts the question into a vector (same way chunks were converted)
-        ↓
-ChromaDB searches for the chunks whose vectors are closest to the question vector
-        ↓
-Only chunks tagged CS101 are searched (metadata filtering)
-        ↓
-Top 3-5 most relevant chunks are retrieved
-        ↓
-Those chunks + the original question are sent to Claude as context
-        ↓
-Claude reads the chunks and generates an answer
-        ↓
-Bot replies in Discord with the answer + which PDF/page it came from
+Bot sends back the actual PDF files using discord.File()
 ```

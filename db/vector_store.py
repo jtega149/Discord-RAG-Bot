@@ -8,7 +8,7 @@ load_dotenv()
 
 
 # Path to where ChromaDB will save data locally
-CHROMA_PATH = "data/chroma"
+CHROMA_PATH = "../data/chroma"
 
 # Global vector_store, to avoid creating multiple connections thus more scalable
 vector_store = None
@@ -32,23 +32,3 @@ def get_vector_store():
 
     return vector_store
 
-
-def store_chunks(chunks: list):
-    # Takes chunks from ingestor and saves them into ChromaDB
-    vector_store = get_vector_store()
-    vector_store.add_documents(chunks)
-    print(f"Stored {len(chunks)} chunks into ChromaDB")
-
-
-def query_chunks(question: str, course: str, k: int = 5):
-    # Searches ChromaDB for the most relevant chunks to the question
-    # filtered by course name so answers only come from the right material
-    vector_store = get_vector_store()
-
-    results = vector_store.similarity_search(
-        query=question,
-        k=k,
-        filter={"course": course}
-    )
-
-    return results

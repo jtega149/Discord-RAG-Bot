@@ -1,42 +1,109 @@
-from langchain_community.document_loaders import PyMuPDFLoader # For loading PDF documents
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_openai import OpenAIEmbeddings
-import os
+from langchain_core.documents import Document
+from openai import OpenAI
 from pydantic import SecretStr
+import fitz  # PyMuPDF
+import base64
+import os
+import shutil
 from dotenv import load_dotenv
 load_dotenv()
 
-def ingest_pdf(file_path: str, course: str):
-    # Load the PDF
+STORAGE_PATH = "../storage/pdfs"
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def save_pdf(file_path: str, course: str) -> str:
+    """
+    Saves the PDF into storage/pdfs/<course>/ folder.
+    Returns the path where the file was saved.
+    """
+    course_folder = os.path.join(STORAGE_PATH, course)
+    os.makedirs(course_folder, exist_ok=True)
+
+    filename = os.path.basename(file_path)
+    destination = os.path.join(course_folder, filename)
+    shutil.copy2(file_path, destination)
+
+    return destination
+
+
+def generate_pdf_summary(file_path: str) -> str | None:
+    """
+    Sends each page of the PDF to OpenAI as an image and generates
+    a single summary describing what the document is about.
+    This summary is what gets embedded into ChromaDB.
+    """
+    pdf = fitz.open(file_path)
+    page_images = []
+
+    for page_num in range(len(pdf)):
+        page = pdf[page_num]
+
+        # Render page as image
+        pix = page.get_pixmap(dpi=100)
+        image_bytes = pix.tobytes("png")
+        image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+
+        page_images.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{image_b64}"
+            }
+        })
+
+    # Add the prompt after all page images
+    page_images.append({
+        "type": "text",
+        "text": (
+            "You are summarizing a university study document. "
+            "Based on all the pages provided, write a concise summary (3-5 sentences) describing: "
+            "what type of document this is (lecture notes, past exam, assignment, study guide, etc.), "
+            "what course or subject it belongs to, "
+            "and what specific topics it covers. "
+            "Be specific so this summary can be used to match student search queries."
+        )
+    })
+
+    pdf.close()
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=512,
+        messages=[{"role": "user", "content": page_images}]
+    )
+
+    return response.choices[0].message.content
+
+
+def ingest_pdf(file_path: str, course: str) -> Document | None:
+    """
+    Main function — saves the PDF and generates a summary.
+    Returns a single Document object to be stored in ChromaDB.
+    """
     try:
-        loader = PyMuPDFLoader(file_path) # Points to pdf file to load
-        documents = loader.load() # Returns a document object with content and stuff per page
-        """
-        Semantic chunking splits based on meaning, not character count.
-        This is better for study material because concepts don't always
-        end neatly at 500 characters — a full explanation of a topic
-        stays together in one chunk instead of getting cut in half.
-        """
-        # Create embeddings for semantic chunking, aka create create vector representations of the text
-        embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            api_key=SecretStr(os.getenv("OPENAI_API_KEY") or ""),
-            dimensions=384 # Bump up to 1536 for production later on
+        # Save the PDF to storage
+        saved_path = save_pdf(file_path, course)
+        print(f"PDF saved to {saved_path}")
+
+        # Generate a summary of the PDF using Claude vision
+        print("Generating summary...")
+        summary = generate_pdf_summary(file_path)
+        if summary:
+            print("Finished creating summary.")
+
+        if not summary:
+            raise RuntimeError("Couldn't generate summary")
+
+        # Return a single Document with the summary as content
+        # and the file path in metadata so we can retrieve it later
+        return Document(
+            page_content=summary,
+            metadata={
+                "course": course,
+                "file_path": saved_path,
+                "filename": os.path.basename(file_path),
+            }
         )
-        # Split the document into semantically meaningful chunks
-        splitter = SemanticChunker(
-            embeddings=embeddings, # Need to use embedding model because we need the vectors to determine semantic similarity for chunking
-            breakpoint_threshold_type="percentile" # splits whenever semantic similarity drops below a certain percentile
-        )
 
-        # Splitting the documents into chunks based on semantic similarity (thing we set up in the splitter above)
-        chunks = splitter.split_documents(documents) 
-
-        # Tag each chunk with course name and source file, helps with retrieval later on when we want to know which course a chunk belongs to and where it came from
-        for chunk in chunks:
-            chunk.metadata["course"] = course
-
-        return chunks
     except Exception as e:
         print(f"Error ingesting PDF: {e}")
-        return []
+        return None
